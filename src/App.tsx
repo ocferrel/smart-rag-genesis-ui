@@ -11,7 +11,8 @@ import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import PrivateRoute from "./components/PrivateRoute";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { initializeDatabase } from "./utils/supabaseUtils";
 
 function App() {
   // Create a client with useState to ensure it's not recreated on every render
@@ -23,6 +24,11 @@ function App() {
       },
     },
   }));
+  
+  // Initialize the database on app start
+  useEffect(() => {
+    initializeDatabase().catch(console.error);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

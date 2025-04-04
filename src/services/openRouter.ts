@@ -22,11 +22,17 @@ export const callOpenRouter = async (
   temperature: number = 0.7,
   maxTokens: number = 1024
 ) => {
+  if (!apiKey) {
+    throw new Error("OpenRouter API key is required");
+  }
+  
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Lovable ChatRAG'
     },
     body: JSON.stringify({
       model,
@@ -53,11 +59,17 @@ export const streamOpenRouter = async (
   maxTokens: number = 1024,
   onChunk: (chunk: string) => void
 ) => {
+  if (!apiKey) {
+    throw new Error("OpenRouter API key is required");
+  }
+  
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Lovable ChatRAG'
     },
     body: JSON.stringify({
       model,

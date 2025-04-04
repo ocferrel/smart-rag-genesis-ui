@@ -14,7 +14,16 @@ export const initializeDatabase = async () => {
     console.log('Database schema exists');
     return true;
   } catch (error) {
-    console.error('Error checking schema:', error);
-    return false;
+    console.error('Error checking schema, trying to create tables:', error);
+    
+    try {
+      // Create tables if they don't exist
+      await supabase.rpc('create_chat_schema');
+      console.log('Created database schema');
+      return true;
+    } catch (createError) {
+      console.error('Error creating schema:', createError);
+      return false;
+    }
   }
 };
