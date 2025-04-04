@@ -1,14 +1,17 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Conversation, Message, Attachment, RAGSource } from "../types";
+import { Conversation, Message, Attachment, RAGSource, SearchResult } from "../types";
 import { findRelevantChunks, generateRAGContext } from "../services/ragService";
+import { searchWithBrave } from "../services/searchService";
 import { toast } from "sonner";
 import {
   fetchConversations,
   createConversation as createConversationApi,
   fetchMessages,
   createMessage as createMessageApi,
+  deleteMessage as deleteMessageApi,
+  deleteAttachment as deleteAttachmentApi,
   fetchSources,
   createSource as createSourceApi,
   deleteSource as deleteSourceApi
@@ -28,6 +31,9 @@ interface ConversationContextType {
   addMessage: (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => Promise<void>;
   addSource: (source: Omit<RAGSource, "id" | "chunks">) => Promise<void>;
   removeSource: (id: string) => Promise<void>;
+  deleteMessage: (id: string) => Promise<void>;
+  deleteAttachment: (id: string) => Promise<void>;
+  searchInternet: (query: string) => Promise<SearchResult[]>;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
@@ -67,17 +73,19 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     queryKey: ['messages', currentConversationId],
     queryFn: () => currentConversationId ? fetchMessages(currentConversationId) : Promise.resolve([]),
     enabled: !!currentConversationId,
-    meta: { 
-      onSuccess: (messages: Message[]) => {
-        queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
-          if (!oldConversations) return [];
-          
-          return oldConversations.map(conv => 
-            conv.id === currentConversationId 
-              ? { ...conv, messages } 
-              : conv
-          );
-        });
+    meta: {
+      onSettled: (messages: Message[] | undefined, error: Error | null) => {
+        if (messages && !error) {
+          queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
+            if (!oldConversations) return [];
+            
+            return oldConversations.map(conv => 
+              conv.id === currentConversationId 
+                ? { ...conv, messages } 
+                : conv
+            );
+          });
+        }
       }
     }
   });
@@ -163,6 +171,63 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  // Delete a message
+  const deleteMessage = async (id: string) => {
+    try {
+      await deleteMessageApi(id);
+      
+      // Update the messages cache
+      queryClient.setQueryData(['messages', currentConversationId], (oldMessages: Message[] | undefined) => {
+        if (!oldMessages) return [];
+        return oldMessages.filter(msg => msg.id !== id);
+      });
+      
+      // Update the conversations cache
+      queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
+        if (!oldConversations) return [];
+        
+        return oldConversations.map(conv => {
+          if (conv.id === currentConversationId) {
+            return {
+              ...conv,
+              messages: (conv.messages || []).filter(msg => msg.id !== id)
+            };
+          }
+          return conv;
+        });
+      });
+      
+      toast.success("Mensaje eliminado");
+    } catch (error) {
+      console.error("Error deleting message", error);
+      toast.error("Error al eliminar el mensaje");
+      throw error;
+    }
+  };
+
+  // Delete an attachment
+  const deleteAttachment = async (id: string) => {
+    try {
+      await deleteAttachmentApi(id);
+      
+      // Update the messages cache by removing the attachment from the message
+      queryClient.setQueryData(['messages', currentConversationId], (oldMessages: Message[] | undefined) => {
+        if (!oldMessages) return [];
+        
+        return oldMessages.map(msg => ({
+          ...msg,
+          attachments: (msg.attachments || []).filter(att => att.id !== id)
+        }));
+      });
+      
+      toast.success("Archivo eliminado");
+    } catch (error) {
+      console.error("Error deleting attachment", error);
+      toast.error("Error al eliminar el archivo");
+      throw error;
+    }
+  };
+
   // Add a source
   const addSource = async (source: Omit<RAGSource, "id" | "chunks">) => {
     try {
@@ -193,6 +258,32 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  // Buscar en internet con Brave
+  const searchInternet = async (query: string): Promise<SearchResult[]> => {
+    try {
+      setIsProcessing(true);
+      const results = await searchWithBrave(query);
+      
+      // Añadir mensaje del usuario
+      await addMessage(`Búsqueda en internet: ${query}`, "user");
+      
+      // Crear un mensaje con los resultados
+      const resultsMessage = `## Resultados de búsqueda para: "${query}"\n\n${
+        results.map(r => `- **[${r.title}](${r.url})**: ${r.snippet}`).join('\n\n')
+      }`;
+      
+      await addMessage(resultsMessage, "assistant");
+      
+      return results;
+    } catch (error) {
+      console.error("Error searching internet", error);
+      toast.error("Error al buscar en internet");
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Subscribe to real-time updates
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -215,7 +306,7 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         schema: 'public',
         table: 'messages'
       }, (payload: any) => {
-        const conversationId = payload.new?.conversation_id;
+        const conversationId = payload.new?.conversation_id || payload.old?.conversation_id;
         if (conversationId) {
           queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
         }
@@ -254,6 +345,9 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addMessage,
         addSource,
         removeSource,
+        deleteMessage,
+        deleteAttachment,
+        searchInternet,
       }}
     >
       {children}

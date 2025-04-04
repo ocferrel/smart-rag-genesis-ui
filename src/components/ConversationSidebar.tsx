@@ -4,15 +4,33 @@ import { useConversation } from "@/context/ConversationContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, MessageSquare, LogOut, Settings, BookOpen, FileUp, Database } from "lucide-react";
+import { PlusCircle, MessageSquare, LogOut, Settings, BookOpen, FileUp, Database, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns/format";
 import { es } from "date-fns/locale";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function ConversationSidebar() {
-  const { conversations, currentConversationId, createConversation, selectConversation, sources } = useConversation();
+  const { conversations, currentConversationId, createConversation, selectConversation, sources, removeSource } = useConversation();
   const { user, logout } = useAuth();
   const [dateGroups, setDateGroups] = useState<{[key: string]: typeof conversations}>({});
+  const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     // Group conversations by date
@@ -36,6 +54,11 @@ export function ConversationSidebar() {
     createConversation();
   };
 
+  const handleDeleteSource = (id: string) => {
+    removeSource(id);
+    setSourceToDelete(null);
+  };
+
   return (
     <div className="w-64 h-screen border-r border-border flex flex-col bg-sidebar">
       <div className="p-4">
@@ -55,20 +78,50 @@ export function ConversationSidebar() {
             <BookOpen size={14} />
             Fuentes ({sources.length})
           </h2>
-          <div className="space-y-1 mb-4 max-h-20 overflow-y-auto">
+          <div className="space-y-1 mb-4 max-h-40 overflow-y-auto">
             {sources.length === 0 ? (
               <p className="text-xs text-muted-foreground">No hay fuentes añadidas</p>
             ) : (
               sources.map((source) => (
-                <div key={source.id} className="text-xs flex items-center gap-1 truncate">
-                  {source.type === 'document' ? (
-                    <FileUp size={12} />
-                  ) : source.type === 'url' ? (
-                    <Database size={12} />
-                  ) : (
-                    <MessageSquare size={12} />
-                  )}
-                  <span className="truncate">{source.name}</span>
+                <div key={source.id} className="text-xs flex items-center justify-between py-1 px-2 rounded hover:bg-muted/50 group">
+                  <div className="flex items-center gap-1 truncate">
+                    {source.type === 'document' ? (
+                      <FileUp size={12} />
+                    ) : source.type === 'url' ? (
+                      <Database size={12} />
+                    ) : (
+                      <MessageSquare size={12} />
+                    )}
+                    <span className="truncate">{source.name}</span>
+                  </div>
+
+                  <AlertDialog open={sourceToDelete === source.id} onOpenChange={(open) => !open && setSourceToDelete(null)}>
+                    <AlertDialogTrigger asChild>
+                      <button 
+                        className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setSourceToDelete(source.id)}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar fuente?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. La fuente "{source.name}" será eliminada permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction 
+                          className="bg-destructive hover:bg-destructive/90"
+                          onClick={() => handleDeleteSource(source.id)}
+                        >
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ))
             )}
@@ -117,9 +170,18 @@ export function ConversationSidebar() {
             <p className="text-sm font-medium">{user?.name || user?.email}</p>
             <p className="text-xs text-muted-foreground">Smart RAG</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={logout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={logout}>
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Cerrar sesión</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <Button variant="outline" size="sm" className="w-full flex items-center gap-2">
           <Settings className="h-3.5 w-3.5" />

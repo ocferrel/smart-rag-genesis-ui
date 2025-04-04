@@ -1,121 +1,223 @@
 
+import { useState } from "react";
 import { Message } from "@/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-import { User, Bot, ImageIcon, FileIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
+import { Trash2, MoreVertical, Download } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useConversation } from "@/context/ConversationContext";
 
 interface ChatMessageProps {
   message: Message;
-  isLast?: boolean;
+  isLast: boolean;
 }
 
 export function ChatMessage({ message, isLast }: ChatMessageProps) {
-  const { role, content, attachments } = message;
-  const isUser = role === "user";
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<string | null>(null);
+  const { deleteMessage, deleteAttachment } = useConversation();
+
+  const handleDeleteMessage = async () => {
+    try {
+      await deleteMessage(message.id);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+    } finally {
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await deleteAttachment(attachmentId);
+    } catch (error) {
+      console.error("Error deleting attachment:", error);
+    } finally {
+      setAttachmentToDelete(null);
+    }
+  };
+
+  // Function to download an attachment
+  const downloadAttachment = (attachment: Message["attachments"][0]) => {
+    if (attachment.data) {
+      const linkSource = `data:${attachment.mimeType || 'application/octet-stream'};base64,${attachment.data}`;
+      const downloadLink = document.createElement('a');
+      downloadLink.href = linkSource;
+      downloadLink.download = attachment.name;
+      downloadLink.click();
+    } else if (attachment.url) {
+      const downloadLink = document.createElement('a');
+      downloadLink.href = attachment.url;
+      downloadLink.download = attachment.name;
+      downloadLink.target = '_blank';
+      downloadLink.click();
+    }
+  };
+
+  const isUserMessage = message.role === "user";
   
   return (
-    <div className={cn("flex gap-3 mb-6", isUser ? "justify-end" : "justify-start")}>
-      {!isUser && (
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-rag-purple text-white">
-            <Bot size={16} />
-          </AvatarFallback>
-        </Avatar>
-      )}
-      
-      <div className={cn("max-w-[80%]", isUser ? "order-1" : "order-2")}>
-        {attachments && attachments.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2">
-            {attachments.map((attachment) => (
-              <div key={attachment.id} className="relative">
-                {attachment.type === "image" && attachment.data && (
-                  <Card className="overflow-hidden">
-                    <CardContent className="p-1">
-                      <div className="relative h-24 w-24">
-                        <img
+    <div className={`flex gap-3 mb-6 ${isUserMessage ? 'flex-row-reverse' : ''}`}>
+      <Avatar className={`h-8 w-8 ${isUserMessage ? 'bg-primary' : 'bg-secondary'}`}>
+        <AvatarFallback>
+          {isUserMessage ? 'U' : 'AI'}
+        </AvatarFallback>
+        {!isUserMessage && (
+          <AvatarImage src="/logo.png" alt="AI" />
+        )}
+      </Avatar>
+
+      <div className={`flex flex-col max-w-[80%] ${isUserMessage ? 'items-end' : 'items-start'}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-medium">
+            {isUserMessage ? 'Tú' : 'Asistente'}
+          </span>
+          {/* Solo mostrar las acciones si no es un mensaje de "pensando" o el último mensaje del asistente */}
+          {!(isLast && message.role === "assistant" && (message.content === "Pensando..." || message.content === "Analizando imagen...")) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="opacity-50 hover:opacity-100 focus:opacity-100">
+                <MoreVertical className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={isUserMessage ? "end" : "start"}>
+                <DropdownMenuItem 
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Eliminar mensaje</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
+        <div className={`flex flex-col gap-2 ${isUserMessage ? 'items-end' : 'items-start'} w-full`}>
+          <Card className={`p-3 ${isUserMessage ? 'bg-primary/10 text-primary-foreground' : 'bg-card'}`}>
+            <div className="prose prose-sm dark:prose-invert">
+              {message.content === "Pensando..." || message.content === "Analizando imagen..." ? (
+                <div className="flex items-center gap-1">
+                  <span>{message.content}</span>
+                  <div className="flex gap-1">
+                    <span className="animate-bounce delay-0">.</span>
+                    <span className="animate-bounce delay-150">.</span>
+                    <span className="animate-bounce delay-300">.</span>
+                  </div>
+                </div>
+              ) : (
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              )}
+            </div>
+          </Card>
+
+          {/* Attachments display */}
+          {message.attachments && message.attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-1">
+              {message.attachments.map(attachment => (
+                <div key={attachment.id} className="relative">
+                  <Card 
+                    className={`p-2 flex items-center gap-2 ${
+                      isUserMessage ? 'bg-primary/5' : 'bg-muted'
+                    }`}
+                  >
+                    {attachment.type === "image" && attachment.data && (
+                      <div className="relative w-32 h-32">
+                        <img 
                           src={`data:image/jpeg;base64,${attachment.data}`}
                           alt={attachment.name}
-                          className="h-full w-full object-cover rounded"
+                          className="w-full h-full object-cover rounded"
                         />
                       </div>
-                    </CardContent>
+                    )}
+                    
+                    {(attachment.type !== "image" || !attachment.data) && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs truncate max-w-[150px]">{attachment.name}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-1 ml-auto">
+                      <button
+                        onClick={() => downloadAttachment(attachment)}
+                        className="text-muted-foreground hover:text-primary"
+                        title="Descargar archivo"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setAttachmentToDelete(attachment.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Eliminar archivo"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </Card>
-                )}
-                
-                {(attachment.type === "document" || attachment.type === "url") && (
-                  <Card className="overflow-hidden">
-                    <CardContent className="p-2 flex items-center gap-2">
-                      {attachment.type === "document" ? (
-                        <FileIcon className="h-4 w-4 text-blue-500" />
-                      ) : (
-                        <ImageIcon className="h-4 w-4 text-green-500" />
-                      )}
-                      <span className="text-xs truncate max-w-[120px]">
-                        {attachment.name}
-                      </span>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <Card className={cn(
-          "overflow-hidden",
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
-        )}>
-          <CardContent className="p-3 text-sm">
-            <ReactMarkdown 
-              className="prose prose-sm max-w-none break-words"
-              components={{
-                pre: ({ node, ...props }) => (
-                  <pre className="bg-gray-800 text-white p-2 rounded-md overflow-x-auto my-2" {...props} />
-                ),
-                code: ({ node, className, children, ...props }) => {
-                  // Check if the code is inline based on the className or other properties
-                  const isInline = !className || !className.includes('language-');
                   
-                  return isInline ? (
-                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs" {...props}>
-                      {children}
-                    </code>
-                  ) : (
-                    <code {...props}>{children}</code>
-                  );
-                },
-                ul: ({ node, ...props }) => <ul className="list-disc pl-4 my-2" {...props} />,
-                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 my-2" {...props} />,
-                li: ({ node, ...props }) => <li className="my-1" {...props} />,
-                p: ({ node, ...props }) => <p className="my-1" {...props} />,
-                h1: ({ node, ...props }) => <h1 className="text-lg font-bold my-2" {...props} />,
-                h2: ({ node, ...props }) => <h2 className="text-md font-bold my-2" {...props} />,
-                h3: ({ node, ...props }) => <h3 className="font-bold my-1" {...props} />,
-                a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" {...props} />,
-                blockquote: ({ node, ...props }) => (
-                  <blockquote className="border-l-2 border-gray-300 pl-4 italic my-2" {...props} />
-                ),
-              }}
-            >
-              {content}
-            </ReactMarkdown>
-          </CardContent>
-        </Card>
-        
-        <div className="text-xs text-muted-foreground mt-1">
-          {new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  <AlertDialog 
+                    open={attachmentToDelete === attachment.id} 
+                    onOpenChange={(open) => !open && setAttachmentToDelete(null)}
+                  >
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar archivo?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. El archivo será eliminado permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction 
+                          className="bg-destructive hover:bg-destructive/90"
+                          onClick={() => handleDeleteAttachment(attachment.id)}
+                        >
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-      
-      {isUser && (
-        <Avatar className="h-8 w-8 order-3">
-          <AvatarFallback className="bg-blue-500 text-white">
-            <User size={16} />
-          </AvatarFallback>
-        </Avatar>
-      )}
+
+      {/* Modal de confirmación para eliminar mensaje */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar mensaje?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El mensaje será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDeleteMessage}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

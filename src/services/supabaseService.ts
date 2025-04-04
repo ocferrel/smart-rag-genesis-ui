@@ -16,17 +16,17 @@ export const fetchConversations = async () => {
   const { data, error } = await supabase
     .from('conversations')
     .select('*')
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false }) as { data: ConversationRow[] | null, error: any };
   
   if (error) throw error;
   
-  return (data || []).map((conv: ConversationRow) => ({
+  return (data || []).map((conv) => ({
     id: conv.id,
     title: conv.title,
     messages: [],
     createdAt: conv.created_at,
     updatedAt: conv.updated_at,
-  }));
+  })) as Conversation[];
 };
 
 export const createConversation = async (title: string) => {
@@ -36,7 +36,7 @@ export const createConversation = async (title: string) => {
       { title }
     ])
     .select()
-    .single();
+    .single() as { data: ConversationRow | null, error: any };
   
   if (error) throw error;
   
@@ -48,7 +48,7 @@ export const createConversation = async (title: string) => {
     messages: [],
     createdAt: data.created_at,
     updatedAt: data.updated_at,
-  };
+  } as Conversation;
 };
 
 export const updateConversation = async (id: string, title: string) => {
@@ -78,17 +78,17 @@ export const fetchMessages = async (conversationId: string) => {
       attachments (*)
     `)
     .eq('conversation_id', conversationId)
-    .order('timestamp', { ascending: true });
+    .order('timestamp', { ascending: true }) as { data: any[] | null, error: any };
   
   if (error) throw error;
   
-  return (data || []).map((msg: any) => ({
+  return (data || []).map((msg) => ({
     id: msg.id,
     content: msg.content,
     role: msg.role,
     timestamp: msg.timestamp,
     attachments: msg.attachments || [],
-  }));
+  })) as Message[];
 };
 
 export const createMessage = async (
@@ -108,7 +108,7 @@ export const createMessage = async (
       }
     ] as any)
     .select()
-    .single();
+    .single() as { data: MessageRow | null, error: any };
   
   if (messageError) throw messageError;
   
@@ -147,31 +147,51 @@ export const createMessage = async (
     role: messageData.role,
     timestamp: messageData.timestamp,
     attachments: attachments || [],
-  };
+  } as Message;
+};
+
+// Eliminar un mensaje y sus adjuntos
+export const deleteMessage = async (messageId: string) => {
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId);
+  
+  if (error) throw error;
+};
+
+// Eliminar un adjunto específico
+export const deleteAttachment = async (attachmentId: string) => {
+  const { error } = await supabase
+    .from('attachments')
+    .delete()
+    .eq('id', attachmentId);
+  
+  if (error) throw error;
 };
 
 // Fuentes RAG
 export const fetchSources = async () => {
   const { data, error } = await supabase
     .from('rag_sources')
-    .select('*');
+    .select('*') as { data: RAGSourceRow[] | null, error: any };
   
   if (error) throw error;
   
-  return (data || []).map((source: RAGSourceRow) => ({
+  return (data || []).map((source) => ({
     id: source.id,
     name: source.name,
-    type: source.type,
+    type: source.type as 'document' | 'url' | 'text',
     content: source.content,
-  }));
+  })) as RAGSource[];
 };
 
 export const createSource = async (source: Omit<RAGSource, 'id' | 'chunks'>) => {
   const { data, error } = await supabase
     .from('rag_sources')
-    .insert([source] as any)
+    .insert([source as any])
     .select()
-    .single();
+    .single() as { data: RAGSourceRow | null, error: any };
   
   if (error) throw error;
   
@@ -180,9 +200,9 @@ export const createSource = async (source: Omit<RAGSource, 'id' | 'chunks'>) => 
   return {
     id: data.id,
     name: data.name,
-    type: data.type,
+    type: data.type as 'document' | 'url' | 'text',
     content: data.content,
-  };
+  } as RAGSource;
 };
 
 export const createChunks = async (sourceId: string, chunks: Omit<RAGChunk, 'id' | 'embedding'>[]) => {
@@ -205,15 +225,15 @@ export const fetchChunks = async (sourceId: string) => {
   const { data, error } = await supabase
     .from('rag_chunks')
     .select('*')
-    .eq('source_id', sourceId);
+    .eq('source_id', sourceId) as { data: RAGChunkRow[] | null, error: any };
   
   if (error) throw error;
   
-  return (data || []).map((chunk: RAGChunkRow) => ({
+  return (data || []).map((chunk) => ({
     id: chunk.id,
     content: chunk.content,
     metadata: chunk.metadata,
-  }));
+  })) as RAGChunk[];
 };
 
 export const deleteSource = async (id: string) => {

@@ -1,3 +1,4 @@
+
 import { useState, useRef, FormEvent, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -5,7 +6,7 @@ import { Attachment } from "@/types";
 import { useConversation } from "@/context/ConversationContext";
 import { callOpenRouter, streamOpenRouter, processImageForOpenRouter } from "@/services/openRouter";
 import { findRelevantChunks, generateRAGContext, processDocument } from "@/services/ragService";
-import { Send, Image, Loader2, Upload, X } from "lucide-react";
+import { Send, Image, Loader2, Upload, X, Search, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,16 +22,21 @@ export function ChatInput() {
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [sourceType, setSourceType] = useState<"url" | "text">("text");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { 
     addMessage, 
     sources, 
     addSource,
+    removeSource,
     apiKey,
     setApiKey,
     currentConversationId,
-    createConversation 
+    createConversation,
+    searchInternet,
+    deleteAttachment
   } = useConversation();
 
   const handleSendMessage = async (e: FormEvent) => {
@@ -201,6 +207,26 @@ export function ChatInput() {
     }
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast.error("Por favor, ingresa un término de búsqueda");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      await searchInternet(searchQuery);
+      setSearchQuery("");
+      setSearchDialogOpen(false);
+    } catch (error) {
+      console.error("Error searching:", error);
+      toast.error("Error al realizar la búsqueda");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="border-t border-border p-4">
       {/* Attachment previews */}
@@ -254,6 +280,52 @@ export function ChatInput() {
               ref={fileInputRef}
               disabled={isLoading}
             />
+            
+            {/* Botón para buscar en internet con Brave */}
+            <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="outline"
+                  disabled={isLoading}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Buscar en Internet</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="search-query">Término de búsqueda</Label>
+                    <Input 
+                      id="search-query"
+                      placeholder="¿Qué deseas buscar?"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSearch();
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="button" 
+                    className="w-full"
+                    onClick={handleSearch}
+                    disabled={isLoading || !searchQuery.trim()}
+                  >
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                    Buscar con Brave
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             
             <Button 
               type="button" 

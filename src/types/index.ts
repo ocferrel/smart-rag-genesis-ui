@@ -9,7 +9,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: number;
+  timestamp: string; // Cambiado a string para compatibilidad con Supabase
   attachments?: Attachment[];
 }
 
@@ -27,8 +27,8 @@ export interface Conversation {
   id: string;
   title: string;
   messages: Message[];
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string; // Cambiado a string para compatibilidad con Supabase
+  updatedAt: string; // Cambiado a string para compatibilidad con Supabase
 }
 
 export type ModelType = 'google/gemini-2.5-pro-exp-03-25:free' | 'qwen/qwen2.5-vl-3b-instruct:free';
@@ -75,4 +75,10 @@ export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+}
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
 }
