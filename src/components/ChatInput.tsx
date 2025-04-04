@@ -1,4 +1,3 @@
-
 import { useState, useRef, FormEvent, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,12 +70,6 @@ export function ChatInput() {
       
       Formatea tu respuesta usando Markdown cuando sea apropiado.`;
       
-      // Prepare messages for API call
-      const apiMessages = [
-        { role: "system", content: systemMessage },
-        { role: "user", content: message }
-      ];
-      
       // If the message includes images, use Qwen model
       if (attachments.some(a => a.type === "image")) {
         const model = "qwen/qwen2.5-vl-3b-instruct:free";
@@ -103,12 +96,11 @@ export function ChatInput() {
         
         // Call Qwen model
         const messages = [
-          { role: "system", content: systemMessage },
-          { role: "user", content }
+          { role: "system" as "system" | "user" | "assistant", content: systemMessage },
+          { role: "user" as "system" | "user" | "assistant", content }
         ];
         
         // Create the "thinking" message
-        const responseId = uuidv4();
         addMessage("Analizando imagen...", "assistant", []);
         
         const response = await callOpenRouter(apiKey, messages, model);
@@ -124,6 +116,11 @@ export function ChatInput() {
         addMessage("Pensando...", "assistant", []);
         
         let responseContent = "";
+        
+        const apiMessages = [
+          { role: "system" as "system" | "user" | "assistant", content: systemMessage },
+          { role: "user" as "system" | "user" | "assistant", content: message }
+        ];
         
         await streamOpenRouter(apiKey, apiMessages, model, 0.7, 1024, (chunk) => {
           responseContent += chunk;
