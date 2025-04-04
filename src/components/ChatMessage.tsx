@@ -74,11 +74,18 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
                 pre: ({ node, ...props }) => (
                   <pre className="bg-gray-800 text-white p-2 rounded-md overflow-x-auto my-2" {...props} />
                 ),
-                code: ({ node, inline, ...props }) => (
-                  inline 
-                  ? <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs" {...props} /> 
-                  : <code {...props} />
-                ),
+                code: ({ node, className, children, ...props }) => {
+                  // Check if the code is inline based on the className or other properties
+                  const isInline = !className || !className.includes('language-');
+                  
+                  return isInline ? (
+                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs" {...props}>
+                      {children}
+                    </code>
+                  ) : (
+                    <code {...props}>{children}</code>
+                  );
+                },
                 ul: ({ node, ...props }) => <ul className="list-disc pl-4 my-2" {...props} />,
                 ol: ({ node, ...props }) => <ol className="list-decimal pl-4 my-2" {...props} />,
                 li: ({ node, ...props }) => <li className="my-1" {...props} />,
