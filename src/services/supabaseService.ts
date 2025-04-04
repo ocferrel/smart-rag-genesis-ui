@@ -1,6 +1,15 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Conversation, Message, Attachment, RAGSource, RAGChunk } from "@/types";
+import { Database } from "@/integrations/supabase/types";
+
+// Type alias for database tables
+type Tables = Database['public']['Tables'];
+type ConversationRow = Tables['conversations']['Row'];
+type MessageRow = Tables['messages']['Row'];
+type AttachmentRow = Tables['attachments']['Row'];
+type RAGSourceRow = Tables['rag_sources']['Row'];
+type RAGChunkRow = Tables['rag_chunks']['Row'];
 
 // Conversaciones
 export const fetchConversations = async () => {
@@ -11,7 +20,7 @@ export const fetchConversations = async () => {
   
   if (error) throw error;
   
-  return data.map(conv => ({
+  return (data || []).map((conv: ConversationRow) => ({
     id: conv.id,
     title: conv.title,
     messages: [],
@@ -31,6 +40,8 @@ export const createConversation = async (title: string) => {
   
   if (error) throw error;
   
+  if (!data) throw new Error('No data returned from createConversation');
+  
   return {
     id: data.id,
     title: data.title,
@@ -43,7 +54,7 @@ export const createConversation = async (title: string) => {
 export const updateConversation = async (id: string, title: string) => {
   const { error } = await supabase
     .from('conversations')
-    .update({ title, updated_at: new Date().toISOString() })
+    .update({ title, updated_at: new Date().toISOString() } as any)
     .eq('id', id);
   
   if (error) throw error;
@@ -71,7 +82,7 @@ export const fetchMessages = async (conversationId: string) => {
   
   if (error) throw error;
   
-  return data.map(msg => ({
+  return (data || []).map((msg: any) => ({
     id: msg.id,
     content: msg.content,
     role: msg.role,
@@ -95,7 +106,7 @@ export const createMessage = async (
         content, 
         role 
       }
-    ])
+    ] as any)
     .select()
     .single();
   
@@ -104,10 +115,12 @@ export const createMessage = async (
   // Actualizamos el timestamp de la conversación
   const { error: updateError } = await supabase
     .from('conversations')
-    .update({ updated_at: new Date().toISOString() })
+    .update({ updated_at: new Date().toISOString() } as any)
     .eq('id', conversationId);
   
   if (updateError) throw updateError;
+  
+  if (!messageData) throw new Error('No data returned from createMessage');
   
   // Si hay adjuntos, los agregamos
   if (attachments && attachments.length > 0) {
@@ -119,7 +132,7 @@ export const createMessage = async (
       url: attachment.url,
       size: attachment.size,
       mime_type: attachment.mimeType,
-    }));
+    })) as any[];
     
     const { error: attachmentsError } = await supabase
       .from('attachments')
@@ -145,7 +158,7 @@ export const fetchSources = async () => {
   
   if (error) throw error;
   
-  return data.map(source => ({
+  return (data || []).map((source: RAGSourceRow) => ({
     id: source.id,
     name: source.name,
     type: source.type,
@@ -156,11 +169,13 @@ export const fetchSources = async () => {
 export const createSource = async (source: Omit<RAGSource, 'id' | 'chunks'>) => {
   const { data, error } = await supabase
     .from('rag_sources')
-    .insert([source])
+    .insert([source] as any)
     .select()
     .single();
   
   if (error) throw error;
+  
+  if (!data) throw new Error('No data returned from createSource');
   
   return {
     id: data.id,
@@ -175,7 +190,7 @@ export const createChunks = async (sourceId: string, chunks: Omit<RAGChunk, 'id'
     source_id: sourceId,
     content: chunk.content,
     metadata: chunk.metadata,
-  }));
+  })) as any[];
   
   const { data, error } = await supabase
     .from('rag_chunks')
@@ -194,7 +209,7 @@ export const fetchChunks = async (sourceId: string) => {
   
   if (error) throw error;
   
-  return data.map(chunk => ({
+  return (data || []).map((chunk: RAGChunkRow) => ({
     id: chunk.id,
     content: chunk.content,
     metadata: chunk.metadata,

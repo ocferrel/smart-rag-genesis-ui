@@ -65,18 +65,20 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Fetch messages for the current conversation
   useQuery({
     queryKey: ['messages', currentConversationId],
-    queryFn: () => fetchMessages(currentConversationId!),
+    queryFn: () => currentConversationId ? fetchMessages(currentConversationId) : Promise.resolve([]),
     enabled: !!currentConversationId,
-    onSuccess: (messages) => {
-      queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
-        if (!oldConversations) return [];
-        
-        return oldConversations.map(conv => 
-          conv.id === currentConversationId 
-            ? { ...conv, messages } 
-            : conv
-        );
-      });
+    meta: { 
+      onSuccess: (messages: Message[]) => {
+        queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
+          if (!oldConversations) return [];
+          
+          return oldConversations.map(conv => 
+            conv.id === currentConversationId 
+              ? { ...conv, messages } 
+              : conv
+          );
+        });
+      }
     }
   });
 
@@ -212,7 +214,7 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         event: '*',
         schema: 'public',
         table: 'messages'
-      }, (payload) => {
+      }, (payload: any) => {
         const conversationId = payload.new?.conversation_id;
         if (conversationId) {
           queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });

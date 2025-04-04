@@ -5,11 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 export const enableRealtimeForTables = async () => {
   // Asegurarnos de que las tablas tengan Replica Identity Full
   try {
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'conversations', replica_type: 'full' });
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'messages', replica_type: 'full' });
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'rag_sources', replica_type: 'full' });
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'rag_chunks', replica_type: 'full' });
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'attachments', replica_type: 'full' });
+    await supabase.rpc('alter_table_replica_identity', { table_name: 'conversations', replica_type: 'full' } as any);
+    await supabase.rpc('alter_table_replica_identity', { table_name: 'messages', replica_type: 'full' } as any);
+    await supabase.rpc('alter_table_replica_identity', { table_name: 'rag_sources', replica_type: 'full' } as any);
+    await supabase.rpc('alter_table_replica_identity', { table_name: 'rag_chunks', replica_type: 'full' } as any);
+    await supabase.rpc('alter_table_replica_identity', { table_name: 'attachments', replica_type: 'full' } as any);
     
     console.log('Realtime configurado correctamente para todas las tablas');
   } catch (error) {
