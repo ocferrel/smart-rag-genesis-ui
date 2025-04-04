@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,28 +7,42 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-const Login = () => {
+const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   
-  const { login, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard");
-    }
-  }, [isAuthenticated, navigate]);
+  // Redirigir si ya está autenticado
+  if (isAuthenticated) {
+    navigate("/dashboard");
+    return null;
+  }
   
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      await login(email, password);
-      navigate("/dashboard");
+      await signup(email, password, name);
+      navigate("/login");
     } catch (error) {
       console.error(error);
     } finally {
@@ -41,21 +55,21 @@ const Login = () => {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2 gradient-text">Smart RAG con Pydantic</h1>
         <p className="text-muted-foreground max-w-md mx-auto">
-          Implementación de RAG (Retrieval-Augmented Generation) con agentes Pydantic y modelos de OpenRouter
+          Crea una cuenta para empezar a usar el sistema RAG
         </p>
       </div>
       
       <Card className="w-[400px] shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">
-            Iniciar sesión
+            Crear cuenta
           </CardTitle>
           <CardDescription className="text-center">
-            Ingresa tus credenciales para continuar
+            Ingresa tus datos para registrarte
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleRegister}>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Correo electrónico</Label>
@@ -69,37 +83,47 @@ const Login = () => {
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Contraseña</Label>
-                  <Button 
-                    variant="link" 
-                    size="sm" 
-                    className="text-xs text-muted-foreground"
-                    type="button"
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </Button>
-                </div>
+                <Label htmlFor="name">Nombre (opcional)</Label>
+                <Input 
+                  id="name" 
+                  type="text"
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
                 <Input 
                   id="password" 
-                  type="password" 
+                  type="password"
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)}
                   required 
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                <Input 
+                  id="confirmPassword" 
+                  type="password"
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                  required
+                />
+              </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Iniciar sesión
+                Crear cuenta
               </Button>
             </div>
           </form>
         </CardContent>
         <CardFooter className="flex justify-center text-sm text-muted-foreground">
           <p>
-            ¿No tienes una cuenta?{" "}
-            <Link to="/register" className="text-primary hover:underline">
-              Regístrate
+            ¿Ya tienes una cuenta?{" "}
+            <Link to="/login" className="text-primary hover:underline">
+              Inicia sesión
             </Link>
           </p>
         </CardFooter>
@@ -108,4 +132,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

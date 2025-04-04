@@ -2,24 +2,16 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, AuthState } from "../types";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock user data for demo purposes
-const MOCK_USERS = [
-  {
-    id: "1",
-    email: "demo@example.com",
-    password: "password123",
-    name: "Demo User"
-  }
-];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -27,95 +19,119 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: false,
     isLoading: true
   });
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Check if user is already logged in (from localStorage)
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          setAuthState({
+            user: {
+              id: session.user.id,
+              email: session.user.email || '',
+              name: session.user.user_metadata.name
+            },
+            isAuthenticated: true,
+            isLoading: false
+          });
+        } else {
+          setAuthState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false
+          });
+        }
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      
+      if (session?.user) {
         setAuthState({
-          user,
+          user: {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata.name
+          },
           isAuthenticated: true,
           isLoading: false
         });
-      } catch (error) {
-        console.error("Failed to parse stored user", error);
-        localStorage.removeItem("user");
+      } else {
         setAuthState({
           user: null,
           isAuthenticated: false,
           isLoading: false
         });
       }
-    } else {
-      setAuthState(prev => ({ ...prev, isLoading: false }));
-    }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
-    // This is a mock implementation for demo purposes
-    // In a real app, you would make an API call to your authentication service
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const user = MOCK_USERS.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      const { password: _, ...userWithoutPassword } = user;
-      localStorage.setItem("user", JSON.stringify(userWithoutPassword));
-      setAuthState({
-        user: userWithoutPassword as User,
-        isAuthenticated: true,
-        isLoading: false
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
+      
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+      
       toast.success("Inicio de sesión exitoso");
-    } else {
-      toast.error("Credenciales incorrectas");
-      throw new Error("Invalid credentials");
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     }
   };
 
   const signup = async (email: string, password: string, name?: string) => {
-    // Mock implementation
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (MOCK_USERS.some(u => u.email === email)) {
-      toast.error("El correo electrónico ya está registrado");
-      throw new Error("Email already exists");
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name || email.split("@")[0]
+          }
+        }
+      });
+      
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+      
+      toast.success("Cuenta creada exitosamente. Revisa tu correo para verificarla.");
+    } catch (error) {
+      console.error("Signup error:", error);
+      throw error;
     }
-
-    const newUser = {
-      id: String(MOCK_USERS.length + 1),
-      email,
-      name: name || email.split("@")[0],
-      password
-    };
-    
-    // In a real app, you would add the user to your database here
-    MOCK_USERS.push(newUser);
-    
-    const { password: _, ...userWithoutPassword } = newUser;
-    localStorage.setItem("user", JSON.stringify(userWithoutPassword));
-    
-    setAuthState({
-      user: userWithoutPassword as User,
-      isAuthenticated: true,
-      isLoading: false
-    });
-    
-    toast.success("Cuenta creada exitosamente");
   };
 
-  const logout = () => {
-    localStorage.removeItem("user");
-    setAuthState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false
-    });
-    toast.info("Sesión cerrada");
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+      
+      toast.info("Sesión cerrada");
+    } catch (error) {
+      console.error("Logout error:", error);
+      throw error;
+    }
   };
 
   return (

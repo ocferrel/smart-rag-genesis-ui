@@ -1,9 +1,20 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, Attachment, RAGSource } from "../types";
 import { findRelevantChunks, generateRAGContext } from "../services/ragService";
-import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
+import {
+  fetchConversations,
+  createConversation as createConversationApi,
+  fetchMessages,
+  createMessage as createMessageApi,
+  fetchSources,
+  createSource as createSourceApi,
+  deleteSource as deleteSourceApi
+} from "../services/supabaseService";
+import { useAuth } from "./AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ConversationContextType {
   conversations: Conversation[];
@@ -12,125 +23,220 @@ interface ConversationContextType {
   isProcessing: boolean;
   apiKey: string;
   setApiKey: (key: string) => void;
-  createConversation: () => string;
+  createConversation: () => Promise<string>;
   selectConversation: (id: string) => void;
-  addMessage: (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => void;
-  addSource: (source: RAGSource) => void;
-  removeSource: (id: string) => void;
+  addMessage: (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => Promise<void>;
+  addSource: (source: Omit<RAGSource, "id" | "chunks">) => Promise<void>;
+  removeSource: (id: string) => Promise<void>;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
 
 export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [sources, setSources] = useState<RAGSource[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiKey, setApiKey] = useState<string>(() => {
     return localStorage.getItem("openrouter_api_key") || "";
   });
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
-  // Load conversations from localStorage on mount
+  // Fetch conversations
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: fetchConversations,
+    enabled: isAuthenticated
+  });
+
+  // Fetch sources
+  const { data: sources = [] } = useQuery({
+    queryKey: ['sources'],
+    queryFn: fetchSources,
+    enabled: isAuthenticated
+  });
+
+  // Find the current conversation
   useEffect(() => {
-    const savedConversations = localStorage.getItem("conversations");
-    const savedSources = localStorage.getItem("rag_sources");
-    
-    if (savedConversations) {
-      try {
-        const parsed = JSON.parse(savedConversations);
-        setConversations(parsed);
+    if (conversations.length > 0 && !currentConversationId) {
+      setCurrentConversationId(conversations[0].id);
+    }
+  }, [conversations, currentConversationId]);
+
+  // Fetch messages for the current conversation
+  useQuery({
+    queryKey: ['messages', currentConversationId],
+    queryFn: () => fetchMessages(currentConversationId!),
+    enabled: !!currentConversationId,
+    onSuccess: (messages) => {
+      queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
+        if (!oldConversations) return [];
         
-        // Set the most recent conversation as active
-        if (parsed.length > 0) {
-          setCurrentConversationId(parsed[0].id);
-        }
-      } catch (e) {
-        console.error("Failed to parse saved conversations", e);
-      }
+        return oldConversations.map(conv => 
+          conv.id === currentConversationId 
+            ? { ...conv, messages } 
+            : conv
+        );
+      });
     }
-    
-    if (savedSources) {
-      try {
-        setSources(JSON.parse(savedSources));
-      } catch (e) {
-        console.error("Failed to parse saved RAG sources", e);
-      }
-    }
-  }, []);
+  });
 
-  // Save conversations to localStorage whenever they change
-  useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem("conversations", JSON.stringify(conversations));
-    }
-  }, [conversations]);
-
-  // Save sources to localStorage whenever they change
-  useEffect(() => {
-    if (sources.length > 0) {
-      localStorage.setItem("rag_sources", JSON.stringify(sources));
-    }
-  }, [sources]);
-
-  // Save API key to localStorage whenever it changes
+  // Save API key to localStorage
   useEffect(() => {
     if (apiKey) {
       localStorage.setItem("openrouter_api_key", apiKey);
     }
   }, [apiKey]);
 
-  const createConversation = () => {
-    const id = uuidv4();
-    const newConversation: Conversation = {
-      id,
-      title: `Conversación ${conversations.length + 1}`,
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    
-    setConversations(prev => [newConversation, ...prev]);
-    setCurrentConversationId(id);
-    return id;
+  // Create a new conversation
+  const createConversation = async () => {
+    try {
+      const title = `Conversación ${conversations.length + 1}`;
+      const newConversation = await createConversationApi(title);
+      
+      queryClient.setQueryData(['conversations'], (old: Conversation[] | undefined) => 
+        old ? [newConversation, ...old] : [newConversation]
+      );
+      
+      setCurrentConversationId(newConversation.id);
+      return newConversation.id;
+    } catch (error) {
+      console.error("Error creating conversation", error);
+      toast.error("Error al crear la conversación");
+      throw error;
+    }
   };
 
+  // Select a conversation
   const selectConversation = (id: string) => {
     setCurrentConversationId(id);
   };
 
-  const addMessage = (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => {
-    const message: Message = {
-      id: uuidv4(),
-      content,
-      role,
-      timestamp: Date.now(),
-      attachments,
-    };
-
-    setConversations(prev => prev.map(conv => 
-      conv.id === currentConversationId 
-        ? { 
-            ...conv, 
-            messages: [...conv.messages, message],
-            updatedAt: Date.now(),
-            // Update the title if this is the first user message
-            title: conv.messages.length === 0 && role === "user" 
+  // Add a message to the current conversation
+  const addMessage = async (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => {
+    if (!currentConversationId) {
+      const newId = await createConversation();
+      setCurrentConversationId(newId);
+    }
+    
+    try {
+      const newMessage = await createMessageApi(
+        currentConversationId!, 
+        content, 
+        role, 
+        attachments
+      );
+      
+      // Update the conversations cache
+      queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
+        if (!oldConversations) return [];
+        
+        return oldConversations.map(conv => {
+          if (conv.id === currentConversationId) {
+            const updatedMessages = [...(conv.messages || []), newMessage];
+            const updatedTitle = conv.messages.length === 0 && role === "user" 
               ? content.slice(0, 30) + (content.length > 30 ? "..." : "") 
-              : conv.title
+              : conv.title;
+            
+            return {
+              ...conv,
+              title: updatedTitle,
+              messages: updatedMessages,
+              updatedAt: new Date().toISOString()
+            };
           }
-        : conv
-    ));
+          return conv;
+        });
+      });
+      
+      // Update the messages cache
+      queryClient.setQueryData(['messages', currentConversationId], (oldMessages: Message[] | undefined) => {
+        if (!oldMessages) return [newMessage];
+        return [...oldMessages, newMessage];
+      });
+      
+    } catch (error) {
+      console.error("Error adding message", error);
+      toast.error("Error al añadir el mensaje");
+      throw error;
+    }
   };
 
-  const addSource = (source: RAGSource) => {
-    setSources(prev => [...prev, source]);
-    toast.success(`Fuente añadida: ${source.name}`);
+  // Add a source
+  const addSource = async (source: Omit<RAGSource, "id" | "chunks">) => {
+    try {
+      const newSource = await createSourceApi(source);
+      queryClient.setQueryData(['sources'], (old: RAGSource[] | undefined) => 
+        old ? [...old, newSource] : [newSource]
+      );
+      toast.success(`Fuente añadida: ${source.name}`);
+    } catch (error) {
+      console.error("Error adding source", error);
+      toast.error("Error al añadir la fuente");
+      throw error;
+    }
   };
 
-  const removeSource = (id: string) => {
-    setSources(prev => prev.filter(source => source.id !== id));
-    toast.info("Fuente eliminada");
+  // Remove a source
+  const removeSource = async (id: string) => {
+    try {
+      await deleteSourceApi(id);
+      queryClient.setQueryData(['sources'], (old: RAGSource[] | undefined) => 
+        old ? old.filter(source => source.id !== id) : []
+      );
+      toast.info("Fuente eliminada");
+    } catch (error) {
+      console.error("Error removing source", error);
+      toast.error("Error al eliminar la fuente");
+      throw error;
+    }
   };
+
+  // Subscribe to real-time updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const conversationsSubscription = supabase
+      .channel('public:conversations')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversations'
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      })
+      .subscribe();
+
+    const messagesSubscription = supabase
+      .channel('public:messages')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages'
+      }, (payload) => {
+        const conversationId = payload.new?.conversation_id;
+        if (conversationId) {
+          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+        }
+      })
+      .subscribe();
+
+    const sourcesSubscription = supabase
+      .channel('public:rag_sources')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'rag_sources'
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['sources'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(conversationsSubscription);
+      supabase.removeChannel(messagesSubscription);
+      supabase.removeChannel(sourcesSubscription);
+    };
+  }, [isAuthenticated, queryClient]);
 
   return (
     <ConversationContext.Provider

@@ -9,7 +9,159 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attachments: {
+        Row: {
+          data: string | null
+          id: string
+          message_id: string
+          mime_type: string | null
+          name: string
+          size: number | null
+          type: string
+          url: string | null
+        }
+        Insert: {
+          data?: string | null
+          id?: string
+          message_id: string
+          mime_type?: string | null
+          name: string
+          size?: number | null
+          type: string
+          url?: string | null
+        }
+        Update: {
+          data?: string | null
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+          name?: string
+          size?: number | null
+          type?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          id: string
+          role: string
+          timestamp: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          id?: string
+          role: string
+          timestamp?: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          id?: string
+          role?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rag_chunks: {
+        Row: {
+          content: string
+          id: string
+          metadata: Json
+          source_id: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          metadata?: Json
+          source_id: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          metadata?: Json
+          source_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rag_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "rag_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rag_sources: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          name: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
