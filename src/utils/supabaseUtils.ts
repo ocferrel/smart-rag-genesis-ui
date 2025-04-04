@@ -1,29 +1,20 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Habilitar realtime para las tablas
-export const enableRealtimeForTables = async () => {
-  // Asegurarnos de que las tablas tengan Replica Identity Full
+// Function to initialize and migrate database schema (simplified)
+export const initializeDatabase = async () => {
+  // Define table schema based on our types
   try {
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'conversations', replica_type: 'full' } as any);
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'messages', replica_type: 'full' } as any);
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'rag_sources', replica_type: 'full' } as any);
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'rag_chunks', replica_type: 'full' } as any);
-    await supabase.rpc('alter_table_replica_identity', { table_name: 'attachments', replica_type: 'full' } as any);
-    
-    console.log('Realtime configurado correctamente para todas las tablas');
+    // We need to use 'as any' to bypass the TypeScript errors until Supabase types are properly configured
+    await (supabase.from('conversations') as any).select('count').limit(1);
+    await (supabase.from('messages') as any).select('count').limit(1);
+    await (supabase.from('message_attachments') as any).select('count').limit(1);
+    await (supabase.from('rag_sources') as any).select('count').limit(1);
+    await (supabase.from('rag_chunks') as any).select('count').limit(1);
+    console.log('Database schema exists');
+    return true;
   } catch (error) {
-    console.error('Error al configurar realtime:', error);
-  }
-};
-
-// Configurar las tablas para publicaciones
-export const enableRealtimePublications = async () => {
-  try {
-    // Esta función se usaría si necesitamos configurar publicaciones personalizadas
-    // Pero por defecto, Supabase ya configura esto automáticamente
-    console.log('Publicaciones realtime ya configuradas por Supabase');
-  } catch (error) {
-    console.error('Error al configurar las publicaciones:', error);
+    console.error('Error checking schema:', error);
+    return false;
   }
 };

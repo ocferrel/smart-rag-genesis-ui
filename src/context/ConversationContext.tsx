@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, Attachment, RAGSource, SearchResult } from "../types";
@@ -47,28 +46,24 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch conversations
   const { data: conversations = [] } = useQuery({
     queryKey: ['conversations'],
     queryFn: fetchConversations,
     enabled: isAuthenticated
   });
 
-  // Fetch sources
   const { data: sources = [] } = useQuery({
     queryKey: ['sources'],
     queryFn: fetchSources,
     enabled: isAuthenticated
   });
 
-  // Find the current conversation
   useEffect(() => {
     if (conversations.length > 0 && !currentConversationId) {
       setCurrentConversationId(conversations[0].id);
     }
   }, [conversations, currentConversationId]);
 
-  // Fetch messages for the current conversation
   useQuery({
     queryKey: ['messages', currentConversationId],
     queryFn: () => currentConversationId ? fetchMessages(currentConversationId) : Promise.resolve([]),
@@ -90,14 +85,12 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   });
 
-  // Save API key to localStorage
   useEffect(() => {
     if (apiKey) {
       localStorage.setItem("openrouter_api_key", apiKey);
     }
   }, [apiKey]);
 
-  // Create a new conversation
   const createConversation = async () => {
     try {
       const title = `Conversación ${conversations.length + 1}`;
@@ -116,12 +109,10 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Select a conversation
   const selectConversation = (id: string) => {
     setCurrentConversationId(id);
   };
 
-  // Add a message to the current conversation
   const addMessage = async (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => {
     if (!currentConversationId) {
       const newId = await createConversation();
@@ -136,7 +127,6 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         attachments
       );
       
-      // Update the conversations cache
       queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
         if (!oldConversations) return [];
         
@@ -158,7 +148,6 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
       });
       
-      // Update the messages cache
       queryClient.setQueryData(['messages', currentConversationId], (oldMessages: Message[] | undefined) => {
         if (!oldMessages) return [newMessage];
         return [...oldMessages, newMessage];
@@ -171,18 +160,15 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Delete a message
   const deleteMessage = async (id: string) => {
     try {
       await deleteMessageApi(id);
       
-      // Update the messages cache
       queryClient.setQueryData(['messages', currentConversationId], (oldMessages: Message[] | undefined) => {
         if (!oldMessages) return [];
         return oldMessages.filter(msg => msg.id !== id);
       });
       
-      // Update the conversations cache
       queryClient.setQueryData(['conversations'], (oldConversations: Conversation[] | undefined) => {
         if (!oldConversations) return [];
         
@@ -205,12 +191,10 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Delete an attachment
   const deleteAttachment = async (id: string) => {
     try {
       await deleteAttachmentApi(id);
       
-      // Update the messages cache by removing the attachment from the message
       queryClient.setQueryData(['messages', currentConversationId], (oldMessages: Message[] | undefined) => {
         if (!oldMessages) return [];
         
@@ -228,7 +212,6 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Add a source
   const addSource = async (source: Omit<RAGSource, "id" | "chunks">) => {
     try {
       const newSource = await createSourceApi(source);
@@ -243,7 +226,6 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Remove a source
   const removeSource = async (id: string) => {
     try {
       await deleteSourceApi(id);
@@ -258,16 +240,13 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Buscar en internet con Brave
   const searchInternet = async (query: string): Promise<SearchResult[]> => {
     try {
       setIsProcessing(true);
       const results = await searchWithBrave(query);
       
-      // Añadir mensaje del usuario
       await addMessage(`Búsqueda en internet: ${query}`, "user");
       
-      // Crear un mensaje con los resultados
       const resultsMessage = `## Resultados de búsqueda para: "${query}"\n\n${
         results.map(r => `- **[${r.title}](${r.url})**: ${r.snippet}`).join('\n\n')
       }`;
@@ -284,7 +263,6 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Subscribe to real-time updates
   useEffect(() => {
     if (!isAuthenticated) return;
 
