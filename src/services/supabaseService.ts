@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Conversation, Message, Attachment, RAGSource } from "@/types";
 
@@ -71,9 +72,12 @@ export const deleteConversation = async (id: string) => {
 };
 
 export const fetchMessages = async (conversationId: string) => {
-  // Using 'as any' to bypass type errors
+  // Using 'as any' to bypass type errors and join with the correct attachments table
   const { data: messages, error } = await (supabase.from('messages') as any)
-    .select('*, message_attachments(*)')
+    .select(`
+      *,
+      attachments(*)
+    `)
     .eq('conversation_id', conversationId)
     .order('timestamp', { ascending: true });
 
@@ -87,7 +91,7 @@ export const fetchMessages = async (conversationId: string) => {
     content: message.content,
     role: message.role,
     timestamp: message.timestamp,
-    attachments: message.message_attachments || []
+    attachments: message.attachments || []
   })) || [];
 };
 
@@ -127,15 +131,15 @@ export const createMessage = async (
       const attachmentInserts = attachments.map((attachment) => ({
         message_id: message.id,
         type: attachment.type,
-        url: attachment.url,
-        data: attachment.data,
+        url: attachment.url || null,
+        data: attachment.data || null,
         name: attachment.name,
-        size: attachment.size,
-        mimeType: attachment.mimeType,
+        size: attachment.size || 0,
+        mime_type: attachment.mimeType || null,
       }));
 
-      const { data: message_attachments, error: attachmentError } = await (supabase
-        .from("message_attachments") as any)
+      const { data: attachmentData, error: attachmentError } = await (supabase
+        .from("attachments") as any) // Changed from "message_attachments" to "attachments"
         .insert(attachmentInserts)
         .select();
 
@@ -150,7 +154,7 @@ export const createMessage = async (
         content: message.content,
         role: message.role,
         timestamp: message.timestamp,
-        attachments: message_attachments || [],
+        attachments: attachmentData || [],
       };
     }
 
@@ -182,7 +186,7 @@ export const deleteMessage = async (id: string) => {
 
 export const deleteAttachment = async (id: string) => {
   // Using 'as any' to bypass type errors
-  const { error } = await (supabase.from('message_attachments') as any)
+  const { error } = await (supabase.from('attachments') as any) // Changed from 'message_attachments' to 'attachments'
     .delete()
     .eq('id', id);
 

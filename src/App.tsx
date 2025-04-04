@@ -14,7 +14,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import { useState } from "react";
 
 function App() {
-  // Create a client
+  // Create a client with useState to ensure it's not recreated on every render
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
