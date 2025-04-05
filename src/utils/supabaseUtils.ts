@@ -13,8 +13,10 @@ export async function initializeDatabase() {
     
     if (conversationsError) {
       console.log('Creating conversations table...');
-      // Use any as the return type instead of null to avoid type constraints
-      await supabase.rpc('initialize_conversations_table', {});
+      // Fix: properly type the RPC call with an empty object for params
+      await supabase.rpc('initialize_conversations_table', {}, { 
+        count: 'exact' 
+      });
     } else {
       console.log('Conversations table already exists');
     }
@@ -27,8 +29,10 @@ export async function initializeDatabase() {
     
     if (messagesError) {
       console.log('Creating messages table...');
-      // Use any as the return type instead of null to avoid type constraints
-      await supabase.rpc('initialize_messages_table', {});
+      // Fix: properly type the RPC call with an empty object for params
+      await supabase.rpc('initialize_messages_table', {}, { 
+        count: 'exact' 
+      });
     } else {
       console.log('Messages table already exists');
     }
