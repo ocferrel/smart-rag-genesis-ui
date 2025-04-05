@@ -13,7 +13,7 @@ export async function initializeDatabase() {
     
     if (conversationsError) {
       console.log('Creating conversations table...');
-      await supabase.rpc('initialize_conversations_table' as any);
+      await supabase.rpc('initialize_conversations_table' as string);
     } else {
       console.log('Conversations table already exists');
     }
@@ -26,7 +26,7 @@ export async function initializeDatabase() {
     
     if (messagesError) {
       console.log('Creating messages table...');
-      await supabase.rpc('initialize_messages_table' as any);
+      await supabase.rpc('initialize_messages_table' as string);
     } else {
       console.log('Messages table already exists');
     }

@@ -60,7 +60,7 @@ export interface RAGSource {
   name: string;
   type: 'document' | 'url' | 'text';
   content?: string;
-  url?: string;
+  url?: string | null;
   chunks?: RAGChunk[];
 }
 

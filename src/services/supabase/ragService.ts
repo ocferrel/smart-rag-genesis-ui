@@ -15,9 +15,9 @@ export const fetchSources = async (): Promise<RAGSource[]> => {
   return data.map(source => ({
     id: source.id,
     name: source.name,
-    type: source.type,
-    content: source.content,
-    url: source.url || null // Add a null fallback since this property might not exist
+    type: source.type as "document" | "url" | "text",
+    content: source.content || "",
+    url: source.url || null // We add this with a null fallback
   })) || [];
 };
 
@@ -41,9 +41,9 @@ export const createSource = async (data: Omit<RAGSource, "id" | "chunks">): Prom
   return {
     id: source.id,
     name: source.name,
-    type: source.type,
-    content: source.content,
-    url: source.url || null // Add a null fallback since this property might not exist
+    type: source.type as "document" | "url" | "text",
+    content: source.content || "",
+    url: source.url || null // Add a null fallback
   };
 };
 
