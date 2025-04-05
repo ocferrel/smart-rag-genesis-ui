@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, Attachment, RAGSource, SearchResult } from "../types";
@@ -14,7 +15,7 @@ import {
   fetchSources,
   createSource as createSourceApi,
   deleteSource as deleteSourceApi
-} from "../services/supabaseService";
+} from "../services/supabase";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
