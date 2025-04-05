@@ -3,7 +3,7 @@ import { useState, useRef, FormEvent, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Attachment } from "@/types";
-import { useConversation } from "@/context/ConversationContext";
+import { useConversation } from "@/context/conversation/ConversationContext";
 import { callOpenRouter, streamOpenRouter, processImageForOpenRouter } from "@/services/openRouter";
 import { findRelevantChunks, generateRAGContext, processDocument } from "@/services/ragService";
 import { Send, Image, Loader2, Upload, X, Search, Trash2 } from "lucide-react";

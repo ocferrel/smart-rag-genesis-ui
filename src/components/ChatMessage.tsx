@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Message } from "@/types";
 import ReactMarkdown from "react-markdown";
@@ -21,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useConversation } from "@/context/ConversationContext";
+import { useConversation } from "@/context/conversation/ConversationContext";
 
 interface ChatMessageProps {
   message: Message;
@@ -53,7 +52,6 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
     }
   };
 
-  // Function to download an attachment
   const downloadAttachment = (attachment: Message["attachments"][0]) => {
     if (attachment.data) {
       const linkSource = `data:${attachment.mimeType || 'application/octet-stream'};base64,${attachment.data}`;
@@ -88,7 +86,6 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
           <span className="text-sm font-medium">
             {isUserMessage ? 'Tú' : 'Asistente'}
           </span>
-          {/* Solo mostrar las acciones si no es un mensaje de "pensando" o el último mensaje del asistente */}
           {!(isLast && message.role === "assistant" && (message.content === "Pensando..." || message.content === "Analizando imagen...")) && (
             <DropdownMenu>
               <DropdownMenuTrigger className="opacity-50 hover:opacity-100 focus:opacity-100">
@@ -125,7 +122,6 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
             </div>
           </Card>
 
-          {/* Attachments display */}
           {message.attachments && message.attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-1">
               {message.attachments.map(attachment => (
@@ -198,7 +194,6 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
         </div>
       </div>
 
-      {/* Modal de confirmación para eliminar mensaje */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

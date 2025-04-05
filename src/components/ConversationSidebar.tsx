@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useConversation } from "@/context/ConversationContext";
+import { useConversation } from "@/context/conversation/ConversationContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
