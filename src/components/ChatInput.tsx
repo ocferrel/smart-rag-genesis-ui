@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 
+const DEFAULT_API_KEY = "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";
+
 export function ChatInput() {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +40,18 @@ export function ChatInput() {
     deleteAttachment
   } = useConversation();
 
+  useState(() => {
+    if (!apiKey) {
+      const savedKey = localStorage.getItem("openrouter_api_key");
+      if (savedKey) {
+        setApiKey(savedKey);
+      } else {
+        setApiKey(DEFAULT_API_KEY);
+        localStorage.setItem("openrouter_api_key", DEFAULT_API_KEY);
+      }
+    }
+  });
+
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     
@@ -46,25 +60,32 @@ export function ChatInput() {
     }
     
     if (!apiKey) {
-      setApiKeyDialogOpen(true);
-      return;
+      setApiKey(DEFAULT_API_KEY);
     }
     
-    if (!currentConversationId) {
-      createConversation();
+    try {
+      if (!currentConversationId) {
+        await createConversation();
+      }
+    } catch (error) {
+      console.error("Error ensuring conversation exists:", error);
+      toast.error("Error al crear la conversación. Usando modo sin persistencia.");
     }
     
     setIsLoading(true);
     
     try {
-      // Add user message
-      await addMessage(message, "user", attachments);
+      let messageId;
+      try {
+        messageId = await addMessage(message, "user", attachments);
+      } catch (error) {
+        console.error("Error adding message to database:", error);
+        toast.error("Error al guardar el mensaje. Continuando en modo sin persistencia.");
+      }
       
-      // Find relevant context from RAG sources
       const relevantChunks = findRelevantChunks(sources, message);
       const context = generateRAGContext(relevantChunks);
       
-      // Create system message with RAG context
       const systemMessage = `Eres un asistente inteligente experto en RAG (Retrieval-Augmented Generation) con Pydantic. ${
         context ? `\n\n${context}` : ""
       }
@@ -75,19 +96,15 @@ export function ChatInput() {
       
       Formatea tu respuesta usando Markdown cuando sea apropiado.`;
       
-      // If the message includes images, use Qwen model
       if (attachments.some(a => a.type === "image")) {
         const model = "qwen/qwen2.5-vl-3b-instruct:free";
         
-        // Prepare content with images
         const content: { type: string; text?: string; image_url?: { url: string } }[] = [];
         
-        // Add text if present
         if (message) {
           content.push({ type: "text", text: message });
         }
         
-        // Add images
         for (const attachment of attachments) {
           if (attachment.type === "image" && attachment.data) {
             content.push({
@@ -99,26 +116,37 @@ export function ChatInput() {
           }
         }
         
-        // Call Qwen model
         const messages = [
           { role: "system" as const, content: systemMessage },
           { role: "user" as const, content }
         ];
         
-        // Create the "thinking" message
-        const thinkingMessageId = await addMessage("Analizando imagen...", "assistant");
+        let thinkingMessageId;
+        try {
+          thinkingMessageId = await addMessage("Analizando imagen...", "assistant");
+        } catch (error) {
+          console.log("Continuing in memory-only mode");
+        }
         
         const response = await callOpenRouter(apiKey, messages, model);
         const responseContent = response.choices[0].message.content;
         
-        // Update with complete response
-        await addMessage(responseContent, "assistant");
+        try {
+          await addMessage(responseContent, "assistant");
+        } catch (error) {
+          console.log("Failed to persist assistant response");
+        }
+        
+        toast.success("Respuesta generada correctamente");
       } else {
-        // For text-only messages, use Gemini model with streaming
         const model = "google/gemini-2.5-pro-exp-03-25:free";
         
-        // Create the "thinking" message
-        const thinkingMessageId = await addMessage("Pensando...", "assistant");
+        let thinkingMessageId;
+        try {
+          thinkingMessageId = await addMessage("Pensando...", "assistant");
+        } catch (error) {
+          console.log("Continuing in memory-only mode");
+        }
         
         let responseContent = "";
         
@@ -129,15 +157,17 @@ export function ChatInput() {
         
         await streamOpenRouter(apiKey, apiMessages, model, 0.7, 1024, (chunk) => {
           responseContent += chunk;
-          // In a real app, you'd update UI with streaming content
           console.log("Stream chunk:", chunk);
         });
         
-        // Update with complete response
-        await addMessage(responseContent, "assistant");
+        try {
+          await addMessage(responseContent, "assistant");
+        } catch (error) {
+          console.log("Failed to persist assistant response");
+          toast.info("Respuesta generada correctamente (modo sin persistencia)");
+        }
       }
       
-      // Clear message and attachments
       setMessage("");
       setAttachments([]);
     } catch (error) {
@@ -175,7 +205,6 @@ export function ChatInput() {
       toast.error("Error al cargar la imagen");
     } finally {
       setIsLoading(false);
-      // Reset the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -229,7 +258,6 @@ export function ChatInput() {
 
   return (
     <div className="border-t border-border p-4">
-      {/* Attachment previews */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {attachments.map(attachment => (
@@ -253,7 +281,6 @@ export function ChatInput() {
       )}
       
       <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
-        {/* Message input */}
         <div className="flex gap-2">
           <div className="grid flex-1">
             <Textarea 
@@ -281,7 +308,6 @@ export function ChatInput() {
               disabled={isLoading}
             />
             
-            {/* Botón para buscar en internet con Brave */}
             <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
@@ -425,7 +451,6 @@ export function ChatInput() {
         </div>
       </form>
       
-      {/* API Key Dialog */}
       <Dialog open={apiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -14,9 +14,15 @@ export const processImageForOpenRouter = async (file: File): Promise<string> => 
   });
 };
 
+// OpenRouter API key from localStorage or use the provided one
+const getApiKey = (): string => {
+  const savedKey = localStorage.getItem("openrouter_api_key");
+  return savedKey || "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";
+};
+
 // Function to call OpenRouter API
 export const callOpenRouter = async (
-  apiKey: string, 
+  apiKey: string = getApiKey(), 
   messages: { role: "system" | "user" | "assistant"; content: string | { type: string; text?: string; image_url?: { url: string } }[] }[],
   model: ModelType = 'google/gemini-2.5-pro-exp-03-25:free',
   temperature: number = 0.7,
@@ -52,7 +58,7 @@ export const callOpenRouter = async (
 
 // Function to stream responses from OpenRouter
 export const streamOpenRouter = async (
-  apiKey: string, 
+  apiKey: string = getApiKey(), 
   messages: { role: "system" | "user" | "assistant"; content: string | { type: string; text?: string; image_url?: { url: string } }[] }[],
   model: ModelType = 'google/gemini-2.5-pro-exp-03-25:free',
   temperature: number = 0.7,

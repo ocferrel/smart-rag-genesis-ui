@@ -33,6 +33,10 @@ export async function initializeDatabase() {
       console.log('Messages table already exists');
     }
     
+    // Check if we need to create or update RLS policies
+    await (supabase.rpc as any)('setup_rls_policies');
+    console.log('RLS policies have been configured');
+    
     console.log('Database initialization complete');
   } catch (error) {
     console.error('Error initializing database:', error);
