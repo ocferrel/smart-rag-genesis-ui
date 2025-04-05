@@ -16,7 +16,7 @@ export const fetchSources = async () => {
     name: source.name,
     type: source.type,
     content: source.content,
-    url: source.url
+    url: source.url || null // Add a null fallback since this property might not exist
   })) || [];
 };
 
@@ -40,7 +40,7 @@ export const createSource = async (source: Omit<RAGSource, "id" | "chunks">) => 
     name: data.name,
     type: data.type,
     content: data.content,
-    url: data.url
+    url: data.url || null // Add a null fallback since this property might not exist
   };
 };
 

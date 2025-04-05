@@ -1,9 +1,8 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Conversation, Message, Attachment, RAGSource, SearchResult } from "../types";
-import { findRelevantChunks, generateRAGContext } from "../services/ragService";
-import { searchWithBrave } from "../services/searchService";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Conversation, Message, Attachment, RAGSource, SearchResult } from "@/types";
+import { searchWithBrave } from "@/services/searchService";
 import { toast } from "sonner";
 import {
   fetchConversations,
@@ -15,30 +14,12 @@ import {
   fetchSources,
   createSource as createSourceApi,
   deleteSource as deleteSourceApi
-} from "../services/supabase";
-import { useAuth } from "./AuthContext";
+} from "@/services/supabase";
+import { useAuth } from "../AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ConversationContextType } from "./types";
 
-interface ConversationContextType {
-  conversations: Conversation[];
-  currentConversationId: string | null;
-  sources: RAGSource[];
-  isProcessing: boolean;
-  apiKey: string;
-  setApiKey: (key: string) => void;
-  createConversation: () => Promise<string>;
-  selectConversation: (id: string) => void;
-  addMessage: (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => Promise<void>;
-  addSource: (source: Omit<RAGSource, "id" | "chunks">) => Promise<void>;
-  removeSource: (id: string) => Promise<void>;
-  deleteMessage: (id: string) => Promise<void>;
-  deleteAttachment: (id: string) => Promise<void>;
-  searchInternet: (query: string) => Promise<SearchResult[]>;
-}
-
-const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
-
-export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function useConversationProvider(): ConversationContextType {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiKey, setApiKey] = useState<string>(() => {
@@ -310,34 +291,20 @@ export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [isAuthenticated, queryClient]);
 
-  return (
-    <ConversationContext.Provider
-      value={{
-        conversations,
-        currentConversationId,
-        sources,
-        isProcessing,
-        apiKey,
-        setApiKey,
-        createConversation,
-        selectConversation,
-        addMessage,
-        addSource,
-        removeSource,
-        deleteMessage,
-        deleteAttachment,
-        searchInternet,
-      }}
-    >
-      {children}
-    </ConversationContext.Provider>
-  );
-};
-
-export const useConversation = (): ConversationContextType => {
-  const context = useContext(ConversationContext);
-  if (context === undefined) {
-    throw new Error("useConversation must be used within a ConversationProvider");
-  }
-  return context;
-};
+  return {
+    conversations,
+    currentConversationId,
+    sources,
+    isProcessing,
+    apiKey,
+    setApiKey,
+    createConversation,
+    selectConversation,
+    addMessage,
+    addSource,
+    removeSource,
+    deleteMessage,
+    deleteAttachment,
+    searchInternet,
+  };
+}
