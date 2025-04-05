@@ -13,8 +13,10 @@ export async function initializeDatabase() {
     
     if (conversationsError) {
       console.log('Creating conversations table...');
-      // Use type assertion to 'unknown' first, then to string to bypass strict typechecking
-      await supabase.rpc('initialize_conversations_table' as unknown as string);
+      // Fix: Using a proper type casting approach for RPC functions
+      await supabase.rpc('initialize_conversations_table', {}, {
+        headers: { 'Content-Type': 'application/json' }
+      });
     } else {
       console.log('Conversations table already exists');
     }
@@ -27,8 +29,10 @@ export async function initializeDatabase() {
     
     if (messagesError) {
       console.log('Creating messages table...');
-      // Use type assertion to 'unknown' first, then to string to bypass strict typechecking
-      await supabase.rpc('initialize_messages_table' as unknown as string);
+      // Fix: Using a proper type casting approach for RPC functions
+      await supabase.rpc('initialize_messages_table', {}, {
+        headers: { 'Content-Type': 'application/json' }
+      });
     } else {
       console.log('Messages table already exists');
     }
