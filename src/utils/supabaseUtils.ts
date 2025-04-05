@@ -13,8 +13,8 @@ export async function initializeDatabase() {
     
     if (conversationsError) {
       console.log('Creating conversations table...');
-      // Use the RPC method with the correct typing
-      await supabase.rpc('initialize_conversations_table');
+      // Fix the type error by using the correct function call signature
+      await supabase.rpc('initialize_conversations_table', {});
     } else {
       console.log('Conversations table already exists');
     }
@@ -27,8 +27,8 @@ export async function initializeDatabase() {
     
     if (messagesError) {
       console.log('Creating messages table...');
-      // Use the RPC method with the correct typing
-      await supabase.rpc('initialize_messages_table');
+      // Fix the type error by using the correct function call signature
+      await supabase.rpc('initialize_messages_table', {});
     } else {
       console.log('Messages table already exists');
     }
