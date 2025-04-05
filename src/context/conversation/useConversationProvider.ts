@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, Attachment, RAGSource, SearchResult } from "@/types";
@@ -95,7 +94,7 @@ export function useConversationProvider(): ConversationContextType {
     setCurrentConversationId(id);
   };
 
-  const addMessage = async (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => {
+  const addMessage = async (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]): Promise<string> => {
     if (!currentConversationId) {
       const newId = await createConversation();
       setCurrentConversationId(newId);
@@ -134,6 +133,8 @@ export function useConversationProvider(): ConversationContextType {
         if (!oldMessages) return [newMessage];
         return [...oldMessages, newMessage];
       });
+      
+      return newMessage.id;
       
     } catch (error) {
       console.error("Error adding message", error);

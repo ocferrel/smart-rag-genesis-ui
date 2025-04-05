@@ -10,7 +10,7 @@ export interface ConversationContextType {
   setApiKey: (key: string) => void;
   createConversation: () => Promise<string>;
   selectConversation: (id: string) => void;
-  addMessage: (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => Promise<void>;
+  addMessage: (content: string, role: "user" | "assistant" | "system", attachments?: Attachment[]) => Promise<string>;
   addSource: (source: Omit<RAGSource, "id" | "chunks">) => Promise<void>;
   removeSource: (id: string) => Promise<void>;
   deleteMessage: (id: string) => Promise<void>;

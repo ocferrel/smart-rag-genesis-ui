@@ -1,4 +1,3 @@
-
 import { useState, useRef, FormEvent, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,7 +58,7 @@ export function ChatInput() {
     
     try {
       // Add user message
-      addMessage(message, "user", attachments);
+      await addMessage(message, "user", attachments);
       
       // Find relevant context from RAG sources
       const relevantChunks = findRelevantChunks(sources, message);
@@ -102,39 +101,40 @@ export function ChatInput() {
         
         // Call Qwen model
         const messages = [
-          { role: "system" as "system" | "user" | "assistant", content: systemMessage },
-          { role: "user" as "system" | "user" | "assistant", content }
+          { role: "system" as const, content: systemMessage },
+          { role: "user" as const, content }
         ];
         
         // Create the "thinking" message
-        addMessage("Analizando imagen...", "assistant", []);
+        const thinkingMessageId = await addMessage("Analizando imagen...", "assistant");
         
         const response = await callOpenRouter(apiKey, messages, model);
         const responseContent = response.choices[0].message.content;
         
-        // Update the message
-        addMessage(responseContent, "assistant", []);
+        // Update with complete response
+        await addMessage(responseContent, "assistant");
       } else {
         // For text-only messages, use Gemini model with streaming
         const model = "google/gemini-2.5-pro-exp-03-25:free";
         
         // Create the "thinking" message
-        addMessage("Pensando...", "assistant", []);
+        const thinkingMessageId = await addMessage("Pensando...", "assistant");
         
         let responseContent = "";
         
         const apiMessages = [
-          { role: "system" as "system" | "user" | "assistant", content: systemMessage },
-          { role: "user" as "system" | "user" | "assistant", content: message }
+          { role: "system" as const, content: systemMessage },
+          { role: "user" as const, content: message }
         ];
         
         await streamOpenRouter(apiKey, apiMessages, model, 0.7, 1024, (chunk) => {
           responseContent += chunk;
-          // Note: In a real app, you'd update UI with streaming content
+          // In a real app, you'd update UI with streaming content
+          console.log("Stream chunk:", chunk);
         });
         
         // Update with complete response
-        addMessage(responseContent, "assistant", []);
+        await addMessage(responseContent, "assistant");
       }
       
       // Clear message and attachments

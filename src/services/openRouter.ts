@@ -1,7 +1,7 @@
 
-import { ModelType } from "@/types";
+import { ModelType, OpenRouterResponse } from "@/types";
 
-// Función para procesar imágenes para OpenRouter
+// Function to process images for OpenRouter
 export const processImageForOpenRouter = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -14,14 +14,14 @@ export const processImageForOpenRouter = async (file: File): Promise<string> => 
   });
 };
 
-// Función para llamar a OpenRouter API
+// Function to call OpenRouter API
 export const callOpenRouter = async (
   apiKey: string, 
   messages: { role: "system" | "user" | "assistant"; content: string | { type: string; text?: string; image_url?: { url: string } }[] }[],
   model: ModelType = 'google/gemini-2.5-pro-exp-03-25:free',
   temperature: number = 0.7,
   maxTokens: number = 1024
-) => {
+): Promise<OpenRouterResponse> => {
   if (!apiKey) {
     throw new Error("OpenRouter API key is required");
   }
@@ -50,10 +50,10 @@ export const callOpenRouter = async (
   return response.json();
 };
 
-// Función para transmitir respuestas de OpenRouter
+// Function to stream responses from OpenRouter
 export const streamOpenRouter = async (
   apiKey: string, 
-  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  messages: { role: "system" | "user" | "assistant"; content: string | { type: string; text?: string; image_url?: { url: string } }[] }[],
   model: ModelType = 'google/gemini-2.5-pro-exp-03-25:free',
   temperature: number = 0.7,
   maxTokens: number = 1024,

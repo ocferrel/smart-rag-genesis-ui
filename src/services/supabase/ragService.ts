@@ -17,7 +17,7 @@ export const fetchSources = async (): Promise<RAGSource[]> => {
     name: source.name,
     type: source.type as "document" | "url" | "text",
     content: source.content || "",
-    url: source.url || null // We add this with a null fallback
+    url: source.content // We use content as the URL since url field doesn't exist
   })) || [];
 };
 
@@ -28,7 +28,7 @@ export const createSource = async (data: Omit<RAGSource, "id" | "chunks">): Prom
       name: data.name,
       type: data.type,
       content: data.content,
-      url: data.url || null
+      url: data.url // This will be stored in the content field
     })
     .select()
     .single();
@@ -43,7 +43,7 @@ export const createSource = async (data: Omit<RAGSource, "id" | "chunks">): Prom
     name: source.name,
     type: source.type as "document" | "url" | "text",
     content: source.content || "",
-    url: source.url || null // Add a null fallback
+    url: source.content // We use content as the URL since url field doesn't exist
   };
 };
 
