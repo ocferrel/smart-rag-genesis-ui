@@ -4,21 +4,18 @@ import { SearchResult } from "@/types";
 // Brave Search API key
 const BRAVE_API_KEY = "BSAXSH1kMKXa7RNrYhDx0ZwDGRi34wV";
 
-// Función para buscar en internet a través de Brave Search
+// Function to search the internet using Brave Search
 export const searchWithBrave = async (query: string): Promise<SearchResult[]> => {
   try {
-    console.log(`Realizando búsqueda en Brave: ${query}`);
+    console.log(`Performing search on Brave: ${query}`);
     
-    const response = await fetch("https://api.search.brave.com/res/v1/web/search", {
+    const response = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "Accept-Encoding": "gzip",
         "X-Subscription-Token": BRAVE_API_KEY
       },
-      // Add query parameters to the URL
-      // Web search requires the 'q' parameter at a minimum
-      // https://api.search.brave.com/res/v1/web/search?q=brave+browser
       signal: AbortSignal.timeout(5000),
     });
 
@@ -35,7 +32,7 @@ export const searchWithBrave = async (query: string): Promise<SearchResult[]> =>
       snippet: result.description || "No description available"
     })) || [];
   } catch (error) {
-    console.error("Error al realizar la búsqueda:", error);
+    console.error("Error performing search:", error);
     
     // Return a fallback result in case of error
     return [{
